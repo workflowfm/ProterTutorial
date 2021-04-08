@@ -6,7 +6,7 @@ ThisBuild / organizationName := "WorkflowFM"
 lazy val root = (project in file("."))
   .settings(
     name := "Proter Tutorial",
-    libraryDependencies += "com.workflowfm" %% "proter" % "0.6.1"
+    libraryDependencies += "com.workflowfm" %% "proter" % "0.7.1"
   )
 
 
