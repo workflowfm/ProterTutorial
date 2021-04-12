@@ -19,3 +19,4 @@
 .metals/
 project/metals.sbt
 .bsp/
+output/Tutorial*

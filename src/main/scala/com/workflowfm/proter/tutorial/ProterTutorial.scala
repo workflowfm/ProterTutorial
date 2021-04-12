@@ -8,6 +8,7 @@ import scala.concurrent.duration._
 import scala.concurrent.Await
 import com.workflowfm.proter.events.PrintEventHandler
 import com.workflowfm.proter.metrics.SimCSVFileOutput
+import com.workflowfm.proter.metrics.SimD3Timeline
 
 object ProterTutorial extends App {
   val waiter1: TaskResource = new TaskResource("Waiter 1", 1)
@@ -23,8 +24,13 @@ object ProterTutorial extends App {
 
   val coordinator: Coordinator = new Coordinator(new ProterScheduler)
 
-  coordinator.subscribe(new SimMetricsHandler(new SimMetricsPrinter and new SimCSVFileOutput("output/", "Tutorial")))
-  // coordinator.subscribe(new PrintEventHandler)
+  coordinator.subscribe(new SimMetricsHandler(
+    new SimMetricsPrinter
+      and new SimCSVFileOutput("output/", "Tutorial")
+      and new SimD3Timeline("output/", "Tutorial")
+      and new SimD3Timeline("output/", "Tutorial-time", 60000)
+  ))
+  //coordinator.subscribe(new PrintEventHandler)
  
   coordinator.addResources(waiters)
   coordinator.addResources(chefs)
@@ -33,8 +39,8 @@ object ProterTutorial extends App {
   val pizzaOrders: SimulationGenerator = new PizzaOrderGenerator(waiters, chefs)
   val breadOrders: SimulationGenerator = new GarlicBreadOrderGenerator(waiters)
 
-  coordinator.addInfiniteArrivalNow(Exponential(1.0/30), pizzaOrders)
-  coordinator.addInfiniteArrivalNext(Exponential(1.0/45), breadOrders)
+  coordinator.addInfiniteArrivalNow(Exponential(30), pizzaOrders)
+  coordinator.addInfiniteArrivalNext(Exponential(45), breadOrders)
 
   coordinator.limit(24*60)
 
