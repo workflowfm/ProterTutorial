@@ -10,7 +10,7 @@ import com.workflowfm.proter.events.PrintEventHandler
 import com.workflowfm.proter.metrics.SimCSVFileOutput
 import com.workflowfm.proter.metrics.SimD3Timeline
 
-object ProterTutorial extends App {
+trait Pizzeria {
   val waiter1: TaskResource = new TaskResource("Waiter 1", 1)
   val waiter2: TaskResource = new TaskResource("Waiter 2", 1)
 
@@ -21,6 +21,9 @@ object ProterTutorial extends App {
 
   val waiters: Seq[TaskResource] = Seq(waiter1, waiter2)
   val chefs: Seq[TaskResource] = Seq(chef1, chef2)
+}
+
+object ProterTutorial extends App with Pizzeria {
 
   val coordinator: Coordinator = new Coordinator(new ProterScheduler)
 
@@ -28,7 +31,27 @@ object ProterTutorial extends App {
     new SimMetricsPrinter
       and new SimCSVFileOutput("output/", "Tutorial")
       and new SimD3Timeline("output/", "Tutorial")
-      and new SimD3Timeline("output/", "Tutorial-time", 60000)
+  ))
+  //coordinator.subscribe(new PrintEventHandler)
+ 
+  coordinator.addResources(waiters)
+  coordinator.addResources(chefs)
+  coordinator.addResource(oven)
+
+  val pizzaOrders: Seq[Simulation] = for (i <- 1 to 3) yield new PizzaOrder("Pizza " + i, waiter1.name, chef1.name, coordinator)
+  val breadOrders: Seq[Simulation] = for (i <- 1 to 3) yield new GarlicBreadOrder("Garlic Bread " + i, waiter1.name, coordinator)
+
+  coordinator.addSimulationsNow(pizzaOrders)
+  coordinator.addSimulationsNow(breadOrders)
+
+  Await.result(coordinator.start(), 1.hour)
+}
+
+object ProterTutorialArrivals extends App with Pizzeria {
+  val coordinator: Coordinator = new Coordinator(new ProterScheduler)
+
+  coordinator.subscribe(new SimMetricsHandler(
+    new SimD3Timeline("output/", "Tutorial-Arrivals", 60000)
   ))
   //coordinator.subscribe(new PrintEventHandler)
  

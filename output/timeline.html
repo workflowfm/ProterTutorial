@@ -15,24 +15,27 @@
     </style>
 </head>
 <body>
-<h2>Resources (ticks):</h2>
+<h1>One-shot:</h1>
+<h2>Resources:</h2>
 <div id="resources"></div>
-<h2>Simulations (ticks):</h2>
+<h2>Simulations:</h2>
 <div id="simulations"></div>
-<h2>Resources (time):</h2>
-<div id="resourcest"></div>
-<h2>Simulations (time):</h2>
-<div id="simulationst"></div>
 <script type="text/javascript" src="d3-workflow-timeline/js/wfm-simulation-timeline.js"></script>
 <script type="text/javascript" src="Tutorial-simdata.js"></script> 
 <script type="text/javascript">
   displayOne("#resources", resourceData, 30, 100);
   displayOne("#simulations", simulationData, 30, 100);
 </script>
-<script type="text/javascript" src="Tutorial-time-simdata.js"></script> 
+
+<h1>Arrivals</h1>
+<h2>Resources:</h2>
+<div id="resources_arrivals"></div>
+<h2>Simulations:</h2>
+<div id="simulations_arrivals"></div>
+<script type="text/javascript" src="Tutorial-Arrivals-simdata.js"></script> 
 <script type="text/javascript">
-  displayOne("#resourcest", resourceData, 10, 100, 5, d3.time.minutes, d3.time.format.utc("%H:%M"));
-  displayOne("#simulationst", simulationData, 10, 100, 5, d3.time.minutes, d3.time.format.utc("%H:%M"));
+  displayOne("#resources_arrivals", resourceData, 5, 100, 10, d3.time.minutes, d3.time.format.utc("%H:%M"));
+  displayOne("#simulations_arrivals", simulationData, 5, 100, 10, d3.time.minutes, d3.time.format.utc("%H:%M"));
 </script>
 </body>
 </html>
