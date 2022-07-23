@@ -1,12 +1,19 @@
-package com.workflowfm.proter.tutorial
+package com.workflowfm.proter
+package tutorial
 
-import com.workflowfm.proter._
-import com.workflowfm.proter.flows._
+import flows.*
+import flows.given
+import cases.*
 
-class PizzaOrder(name: String, waiter: String, chef: String, manager: Manager) extends FlowSimulation(name, manager, PizzaOrder.flow(waiter, chef))
+import cats.Monad
+import cats.implicits.*
+import cats.effect.std.{ Random, UUIDGen }
+import cats.effect.implicits.*
+
+import scala.language.implicitConversions
 
 object PizzaOrder {
-  def flow(waiter: String, chef: String): Flow = {
+  def apply(waiter: String, chef: String): Flow = {
     val takeOrder: FlowTask = Task("Take Order", Uniform(5, 10)) withResources(Seq(waiter))
     val prepare: FlowTask = Task("Prepare", Uniform(5, 10)) withResources(Seq(chef)) withCost 6
     val bake: FlowTask = Task("Bake", Uniform(20, 30)) withResources(Seq("Oven"))
@@ -16,24 +23,22 @@ object PizzaOrder {
   }
 }
 
-class PizzaOrderGenerator(waiters: Seq[TaskResource], chefs: Seq[TaskResource]) extends SimulationGenerator {
-  val rWaiter = Uniform(0, waiters.size)
-  val rChef = Uniform(0, chefs.size)
+final case class PizzaPlace(waiters: Seq[Resource], chefs: Seq[Resource])
 
-  override def build(manager: Manager, count: Int): Simulation = {
-    val name = "Pizza " + count.toString()
+given [F[_]](using Monad[F], UUIDGen[F], Random[F]): Case[F, PizzaPlace] with {
+  override def init(name: String, count: Int, time: Long, p: PizzaPlace): F[CaseRef[F]] = for {
+    wi <- Uniform(0, p.waiters.size).getLong
+    ci <- Uniform(0, p.chefs.size).getLong
 
-    val waiter: String = waiters(rWaiter.getLong.toInt).name
-    val chef: String = chefs(rChef.getLong.toInt).name
-
-    new PizzaOrder(name, waiter, chef, manager)
-  }
+    waiter: String = p.waiters(wi.toInt).name
+    chef: String = p.chefs(ci.toInt).name
+    
+    caseRef <- summon[Case[F, Flow]].init(name, count, time, PizzaOrder(waiter, chef)) 
+  } yield caseRef
 }
 
-class GarlicBreadOrder(name: String, waiter: String, manager: Manager) extends FlowSimulation(name, manager, GarlicBreadOrder.flow(waiter))
-
 object GarlicBreadOrder {
-  def flow(waiter: String): Flow = {
+  def apply(waiter: String): Flow = {
     val takeOrder: FlowTask = Task("Take Order", Uniform(5, 10)) withResources(Seq(waiter))
     val bake: FlowTask = Task("Bake", Uniform(5, 10)) withResources(Seq("Oven"))
     val serve: FlowTask = Task("Serve", Uniform(1, 3)) withResources(Seq(waiter)) withPriority Task.High
@@ -42,14 +47,14 @@ object GarlicBreadOrder {
   }
 }
 
-class GarlicBreadOrderGenerator(waiters: Seq[TaskResource]) extends SimulationGenerator {
-  val rWaiter = Uniform(0, waiters.size)
+final case class GarlicPlace(waiters: Seq[Resource])
 
-  override def build(manager: Manager, count: Int): Simulation = {
-    val name = "Garlic Bread " + count.toString()
+given [F[_]](using Monad[F], UUIDGen[F], Random[F]): Case[F, GarlicPlace] with {
+  override def init(name: String, count: Int, time: Long, g: GarlicPlace): F[CaseRef[F]] = for {
+    wi <- Uniform(0, g.waiters.size).getLong
 
-    val waiter: String = waiters(rWaiter.getLong.toInt).name
+    waiter: String = g.waiters(wi.toInt).name
+    caseRef <- summon[Case[F, Flow]].init(name, count, time, GarlicBreadOrder(waiter))
+  } yield caseRef
 
-    new GarlicBreadOrder(name, waiter, manager)
-  }
 }

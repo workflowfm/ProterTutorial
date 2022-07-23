@@ -1,71 +1,77 @@
-package com.workflowfm.proter.tutorial
+package com.workflowfm.proter
+package tutorial
 
-import com.workflowfm.proter._
-import com.workflowfm.proter.schedule.ProterScheduler
-import com.workflowfm.proter.metrics.{ SimMetricsHandler, SimMetricsPrinter }
+import flows.*
+import flows.given
+import metrics.*
+import schedule.ProterScheduler
 
-import scala.concurrent.duration._
-import scala.concurrent.Await
-import com.workflowfm.proter.events.PrintEventHandler
-import com.workflowfm.proter.metrics.SimCSVFileOutput
-import com.workflowfm.proter.metrics.SimD3Timeline
+import cats.effect.{ IO, IOApp, ExitCode }
+import cats.effect.std.Random
 
 trait Pizzeria {
-  val waiter1: TaskResource = new TaskResource("Waiter 1", 1)
-  val waiter2: TaskResource = new TaskResource("Waiter 2", 1)
+  val waiter1: Resource = Resource("Waiter 1", 1, 1)
+  val waiter2: Resource = Resource("Waiter 2", 1, 1)
 
-  val oven: TaskResource = new TaskResource("Oven", 5)
+  val oven: Resource = Resource("Oven", 1, 5)
 
-  val chef1: TaskResource = new TaskResource("Chef 1", 1)
-  val chef2: TaskResource = new TaskResource("Chef 2", 1)
+  val chef1: Resource = Resource("Chef 1", 1, 1)
+  val chef2: Resource = Resource("Chef 2", 1, 1)
 
-  val waiters: Seq[TaskResource] = Seq(waiter1, waiter2)
-  val chefs: Seq[TaskResource] = Seq(chef1, chef2)
+  val waiters: Seq[Resource] = Seq(waiter1, waiter2)
+  val chefs: Seq[Resource] = Seq(chef1, chef2)
+
+  val pizzas: PizzaPlace = PizzaPlace(waiters, chefs)
+  val breads: GarlicPlace = GarlicPlace(waiters)
 }
 
-object ProterTutorial extends App with Pizzeria {
+object ProterTutorial extends IOApp with Pizzeria {
+  def run(args: List[String]): IO[ExitCode] =
+    Random.scalaUtilRandom[IO].flatMap { r =>
+      given Random[IO] = r
+      val simulator = Simulator[IO](ProterScheduler) withSubs (
+        MetricsSubscriber[IO](
+          MetricsPrinter(),
+          CSVFile("output/", "Tutorial"),
+          D3Timeline("output/", "Tutorial")
+        )
+      )
 
-  val coordinator: Coordinator = new Coordinator(new ProterScheduler)
+      val pizzaOrders: Seq[(String, Flow)] = 
+        for (i <- 1 to 3) yield ("Pizza " + i, PizzaOrder(waiter1.name, chef1.name))
+      val breadOrders: Seq[(String, Flow)] = 
+        for (i <- 1 to 3) yield ("Garlic Bread " + i, GarlicBreadOrder(waiter1.name))
 
-  coordinator.subscribe(new SimMetricsHandler(
-    new SimMetricsPrinter
-      and new SimCSVFileOutput("output/", "Tutorial")
-      and new SimD3Timeline("output/", "Tutorial")
-  ))
-  //coordinator.subscribe(new PrintEventHandler)
- 
-  coordinator.addResources(waiters)
-  coordinator.addResources(chefs)
-  coordinator.addResource(oven)
+      val scenario = Scenario[IO]("Pizza Tutorial")
+        .withResources(waiters)
+        .withResources(chefs)
+        .withResource(oven)
+        .withCases(pizzaOrders :_*)
+        .withCases(breadOrders :_*)
 
-  val pizzaOrders: Seq[Simulation] = for (i <- 1 to 3) yield new PizzaOrder("Pizza " + i, waiter1.name, chef1.name, coordinator)
-  val breadOrders: Seq[Simulation] = for (i <- 1 to 3) yield new GarlicBreadOrder("Garlic Bread " + i, waiter1.name, coordinator)
-
-  coordinator.addSimulationsNow(pizzaOrders)
-  coordinator.addSimulationsNow(breadOrders)
-
-  Await.result(coordinator.start(), 1.hour)
+      simulator.simulate(scenario).as(ExitCode(1))
+    }
 }
 
-object ProterTutorialArrivals extends App with Pizzeria {
-  val coordinator: Coordinator = new Coordinator(new ProterScheduler)
+object ProterTutorialArrivals extends IOApp with Pizzeria {
+  def run(args: List[String]): IO[ExitCode] =
+    Random.scalaUtilRandom[IO].flatMap { r =>
+      given Random[IO] = r
+      val simulator = Simulator[IO](ProterScheduler) withSubs (
+        MetricsSubscriber[IO](
+          D3Timeline("output/", "Tutorial-Arrivals", 60000)
+        )
+      )
 
-  coordinator.subscribe(new SimMetricsHandler(
-    new SimD3Timeline("output/", "Tutorial-Arrivals", 60000)
-  ))
-  //coordinator.subscribe(new PrintEventHandler)
- 
-  coordinator.addResources(waiters)
-  coordinator.addResources(chefs)
-  coordinator.addResource(oven)
+      val scenario = Scenario[IO]("Pizza Tutorial")
+        .withResources(waiters)
+        .withResources(chefs)
+        .withResource(oven)
+        .withInfiniteArrival("Pizza", PizzaPlace(waiters, chefs), Exponential(30))
+        // typo!!
+        .withTimedInifiniteArrival("Garlic Bread", 45, GarlicPlace(waiters), Exponential(45))
+        .withLimit(24*60)
 
-  val pizzaOrders: SimulationGenerator = new PizzaOrderGenerator(waiters, chefs)
-  val breadOrders: SimulationGenerator = new GarlicBreadOrderGenerator(waiters)
-
-  coordinator.addInfiniteArrivalNow(Exponential(30), pizzaOrders)
-  coordinator.addInfiniteArrivalNext(Exponential(45), breadOrders)
-
-  coordinator.limit(24*60)
-
-  Await.result(coordinator.start(), 1.hour)
+      simulator.simulate(scenario).as(ExitCode(1))
+    }
 }
