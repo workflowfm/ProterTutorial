@@ -9,26 +9,21 @@ import schedule.ProterScheduler
 import cats.effect.{ IO, IOApp, ExitCode }
 import cats.effect.std.Random
 
-trait Pizzeria {
-  val waiter1: Resource = Resource("Waiter 1", 1, 1)
-  val waiter2: Resource = Resource("Waiter 2", 1, 1)
+class Pizzeria(waiters: Int, ovens: Int, chefs: Int) {
+  val waiterResource: Resource = Resource("Waiter", waiters, 1)
+  val ovenResource: Resource = Resource("Oven", ovens, 5)
+  val chefResource: Resource = Resource("Chef", chefs, 1)
 
-  val oven: Resource = Resource("Oven", 1, 5)
-
-  val chef1: Resource = Resource("Chef 1", 1, 1)
-  val chef2: Resource = Resource("Chef 2", 1, 1)
-
-  val waiters: Seq[Resource] = Seq(waiter1, waiter2)
-  val chefs: Seq[Resource] = Seq(chef1, chef2)
-
-  val pizzas: PizzaPlace = PizzaPlace(waiters, chefs)
-  val breads: GarlicPlace = GarlicPlace(waiters)
+  val pizza = PizzaCase(waiterResource.name, ovenResource.name, chefResource.name)
+  val garlicBread = GarlicCase(waiterResource.name, ovenResource.name)
 }
 
-object ProterTutorial extends IOApp with Pizzeria {
+object ProterTutorial extends IOApp {
   def run(args: List[String]): IO[ExitCode] =
     Random.scalaUtilRandom[IO].flatMap { r =>
       given Random[IO] = r
+      val pizzeria = new Pizzeria(2, 3, 1)
+
       val simulator = Simulator[IO](ProterScheduler) withSubs (
         MetricsSubscriber[IO](
           MetricsPrinter(),
@@ -38,14 +33,14 @@ object ProterTutorial extends IOApp with Pizzeria {
       )
 
       val pizzaOrders: Seq[(String, Flow)] = 
-        for (i <- 1 to 3) yield ("Pizza " + i, PizzaOrder(waiter1.name, chef1.name))
+        for (i <- 1 to 3) yield ("Pizza " + i, pizzeria.pizza.flow)
       val breadOrders: Seq[(String, Flow)] = 
-        for (i <- 1 to 3) yield ("Garlic Bread " + i, GarlicBreadOrder(waiter1.name))
+        for (i <- 1 to 3) yield ("Garlic Bread " + i, pizzeria.garlicBread.flow)
 
       val scenario = Scenario[IO]("Pizza Tutorial")
-        .withResources(waiters)
-        .withResources(chefs)
-        .withResource(oven)
+        .withResource(pizzeria.waiterResource)
+        .withResource(pizzeria.chefResource)
+        .withResource(pizzeria.ovenResource)
         .withCases(pizzaOrders :_*)
         .withCases(breadOrders :_*)
 
@@ -53,10 +48,12 @@ object ProterTutorial extends IOApp with Pizzeria {
     }
 }
 
-object ProterTutorialArrivals extends IOApp with Pizzeria {
+object ProterTutorialArrivals extends IOApp  {
   def run(args: List[String]): IO[ExitCode] =
     Random.scalaUtilRandom[IO].flatMap { r =>
       given Random[IO] = r
+      val pizzeria = new Pizzeria(2, 3, 1)
+
       val simulator = Simulator[IO](ProterScheduler) withSubs (
         MetricsSubscriber[IO](
           D3Timeline("output/", "Tutorial-Arrivals", 60000)
@@ -64,12 +61,12 @@ object ProterTutorialArrivals extends IOApp with Pizzeria {
       )
 
       val scenario = Scenario[IO]("Pizza Tutorial")
-        .withResources(waiters)
-        .withResources(chefs)
-        .withResource(oven)
-        .withInfiniteArrival("Pizza", PizzaPlace(waiters, chefs), Exponential(30))
+        .withResource(pizzeria.waiterResource)
+        .withResource(pizzeria.chefResource)
+        .withResource(pizzeria.ovenResource)
+        .withInfiniteArrival("Pizza", pizzeria.pizza, Exponential(30))
         // typo!!
-        .withTimedInifiniteArrival("Garlic Bread", 45, GarlicPlace(waiters), Exponential(45))
+        .withTimedInifiniteArrival("Garlic Bread", 40, pizzeria.garlicBread, Exponential(40))
         .withLimit(24*60)
 
       simulator.simulate(scenario).as(ExitCode(1))
