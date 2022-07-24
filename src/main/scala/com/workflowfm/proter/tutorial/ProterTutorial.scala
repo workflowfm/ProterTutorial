@@ -56,7 +56,7 @@ object ProterTutorialArrivals extends IOApp  {
 
       val simulator = Simulator[IO](ProterScheduler) withSubs (
         MetricsSubscriber[IO](
-          D3Timeline("output/", "Tutorial-Arrivals", 60000)
+          D3Timeline("output/", "Tutorial-Arrivals", 1000)
         )
       )
 
@@ -64,10 +64,10 @@ object ProterTutorialArrivals extends IOApp  {
         .withResource(pizzeria.waiterResource)
         .withResource(pizzeria.chefResource)
         .withResource(pizzeria.ovenResource)
-        .withInfiniteArrival("Pizza", pizzeria.pizza, Exponential(30))
+        .withInfiniteArrival("Pizza", pizzeria.pizza, Exponential(30*60))
         // typo!!
-        .withTimedInifiniteArrival("Garlic Bread", 40, pizzeria.garlicBread, Exponential(40))
-        .withLimit(24*60)
+        .withTimedInifiniteArrival("Garlic Bread", 40*60, pizzeria.garlicBread, Exponential(40*60))
+        .withLimit(24*60*60)
 
       simulator.simulate(scenario).as(ExitCode(1))
     }

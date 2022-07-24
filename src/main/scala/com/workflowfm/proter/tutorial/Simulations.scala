@@ -14,10 +14,10 @@ import scala.language.implicitConversions
 
 final case class PizzaCase(waiterResource: String, ovenResource: String, chefResource: String) {
     val flow: Flow = {
-      val takeOrder: FlowTask = Task("Take Order", Uniform(5, 10)) withResources(Seq(waiterResource))
-      val prepare: FlowTask = Task("Prepare", Uniform(5, 10)) withResources(Seq(chefResource)) withCost 6
-      val bake: FlowTask = Task("Bake", Uniform(20, 30)) withResources(Seq(ovenResource))
-      val serve: FlowTask = Task("Serve", Uniform(1, 3)) withResources(Seq(waiterResource)) withPriority Task.High
+      val takeOrder: FlowTask = Task("Take Order", Uniform(5*60, 10*60)) withResources(Seq(waiterResource))
+      val prepare: FlowTask = Task("Prepare", Uniform(5*60, 10*60)) withResources(Seq(chefResource)) withCost 6
+      val bake: FlowTask = Task("Bake", Uniform(20*60, 30*60)) withResources(Seq(ovenResource))
+      val serve: FlowTask = Task("Serve", Uniform(1*60, 3*60)) withResources(Seq(waiterResource)) withPriority Task.High
 
       takeOrder > prepare > bake > serve
     }
@@ -31,9 +31,9 @@ given [F[_]](using m: Monad[F], u: UUIDGen[F], r: Random[F], caseFlow: Case[F, F
 
 final case class GarlicCase(waiterResource: String, ovenResource: String) {
   val flow: Flow = {
-    val takeOrder: FlowTask = Task("Take Order", Uniform(5, 10)) withResources(Seq(waiterResource))
-    val bake: FlowTask = Task("Bake", Uniform(5, 10)) withResources(Seq(ovenResource))
-    val serve: FlowTask = Task("Serve", Uniform(1, 3)) withResources(Seq(waiterResource)) withPriority Task.High
+    val takeOrder: FlowTask = Task("Take Order", Uniform(5*60, 10*60)) withResources(Seq(waiterResource))
+    val bake: FlowTask = Task("Bake", Uniform(5*60, 10*60)) withResources(Seq(ovenResource))
+    val serve: FlowTask = Task("Serve", Uniform(1*60, 3*60)) withResources(Seq(waiterResource)) withPriority Task.High
 
     takeOrder > bake > serve
   }
